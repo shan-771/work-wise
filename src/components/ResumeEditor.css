@@ -1,0 +1,107 @@
+/* Base Styles */
+.resume-editor-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.editor-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.editor-header h1 {
+  font-size: 2.5rem;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.editor-header p {
+  font-size: 1.1rem;
+  color: #4a5568;
+}
+
+/* Controls */
+.editor-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.control-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.back-btn {
+  background: #f1f5f9;
+  color: #4a5568;
+}
+
+.back-btn:hover {
+  background: #e2e8f0;
+}
+
+.download-btn {
+  background: #4f46e5;
+  color: white;
+}
+
+.download-btn:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+}
+
+.control-btn.active {
+  background: #10b981;
+  color: white;
+}
+
+/* Preview Container */
+.resume-preview-container {
+  background: white;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  min-height: 800px;
+}
+
+/* Loading and Error States */
+.loading,
+.error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+}
+
+.error {
+  color: #e53e3e;
+}
+
+/* Print Styles */
+@media print {
+  .editor-header,
+  .editor-controls {
+    display: none;
+  }
+  
+  .resume-preview-container {
+    padding: 0;
+    box-shadow: none;
+  }
+}

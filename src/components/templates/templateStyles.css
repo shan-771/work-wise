@@ -1,0 +1,129 @@
+/* Shared styles for all templates */
+.resume {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  
+  .section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-title {
+    border-bottom: 2px solid #333;
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.8rem;
+    font-size: 1.2rem;
+  }
+
+  /* Basic Template */
+.basic-template {
+    background: white;
+    color: #333;
+  }
+  
+  /* Modern Template */
+  .modern-template {
+    background: #f9f9f9;
+  }
+  .two-column-layout {
+    display: grid;
+    grid-template-columns: 30% 70%;
+    gap: 2rem;
+  }
+  .skill-tag {
+    background: #e3f2fd;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    display: inline-block;
+    margin: 0.2rem;
+  }
+  
+  /* Professional Template */
+  .professional-template {
+    background: white;
+    color: #444;
+  }
+  .company-duration {
+    color: #666;
+    font-style: italic;
+  }
+  .achievements {
+    margin-top: 0.5rem;
+  }
+
+  /* Hide buttons when printing */
+@media print {
+  .editor-controls {
+    display: none !important;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  .resume {
+    box-shadow: none;
+    padding: 0;
+  }
+}
+
+/* Modern Template */
+.profile-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+}
+
+/* Professional Template */
+.professional-template .section-title {
+  color: #2c3e50;
+  border-bottom: 2px solid #2c3e50;
+}
+
+/* Modern Button Styles */
+.editor-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn {
+  background: #f5f5f5;
+  color: #555;
+}
+
+.back-btn:hover {
+  background: #e0e0e0;
+}
+
+.download-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.download-btn:hover {
+  background: #43A047;
+  transform: translateY(-1px);
+}
+
+/* Font Awesome Icons (add this if not already in your project) */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
