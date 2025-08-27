@@ -1,495 +1,744 @@
-import React, { useState, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
-import * as pdfjsLib from 'pdfjs-dist';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 
-// Set worker path
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+// Enhanced ATS Scorer Class
+class EnhancedATSScorer {
+  constructor() {
+    this.skillCategories = {
+      programmingLanguages: {
+        javascript: ['js', 'javascript', 'ecmascript', 'es6', 'es2020'],
+        python: ['python', 'py', 'python3'],
+        java: ['java', 'openjdk'],
+        typescript: ['typescript', 'ts'],
+        csharp: ['c#', 'csharp', '.net', 'dotnet'],
+        php: ['php', 'php7', 'php8'],
+        go: ['golang', 'go'],
+        rust: ['rust', 'rustlang'],
+        swift: ['swift', 'ios'],
+        kotlin: ['kotlin', 'android']
+      },
+      frameworks: {
+        react: ['react', 'reactjs', 'react.js'],
+        angular: ['angular', 'angularjs', 'angular2+'],
+        vue: ['vue', 'vuejs', 'vue.js'],
+        nodejs: ['node', 'nodejs', 'node.js'],
+        express: ['express', 'expressjs', 'express.js'],
+        django: ['django', 'python django'],
+        flask: ['flask', 'python flask'],
+        spring: ['spring', 'spring boot', 'springframework']
+      },
+      databases: {
+        sql: ['sql', 'mysql', 'postgresql', 'sqlite', 'mssql'],
+        nosql: ['mongodb', 'cassandra', 'dynamodb', 'redis'],
+        database: ['database', 'db', 'dbms']
+      },
+      cloud: {
+        aws: ['aws', 'amazon web services', 'ec2', 's3', 'lambda'],
+        azure: ['azure', 'microsoft azure'],
+        gcp: ['gcp', 'google cloud', 'google cloud platform'],
+        docker: ['docker', 'containerization'],
+        kubernetes: ['kubernetes', 'k8s', 'container orchestration']
+      },
+      tools: {
+        git: ['git', 'github', 'gitlab', 'version control'],
+        ci_cd: ['ci/cd', 'jenkins', 'gitlab ci', 'github actions'],
+        testing: ['testing', 'unit testing', 'jest', 'cypress', 'selenium']
+      },
+      softSkills: {
+        leadership: ['leadership', 'lead', 'manage', 'mentor'],
+        communication: ['communication', 'collaborate', 'teamwork'],
+        problemSolving: ['problem solving', 'analytical', 'troubleshoot'],
+        agile: ['agile', 'scrum', 'kanban', 'sprint']
+      }
+    };
+    
+    this.industryWeights = {
+      frontend: { frameworks: 0.4, programmingLanguages: 0.3, tools: 0.2, softSkills: 0.1 },
+      backend: { programmingLanguages: 0.4, databases: 0.3, cloud: 0.2, softSkills: 0.1 },
+      fullstack: { programmingLanguages: 0.3, frameworks: 0.3, databases: 0.2, tools: 0.2 },
+      devops: { cloud: 0.4, tools: 0.3, programmingLanguages: 0.2, softSkills: 0.1 },
+      default: { programmingLanguages: 0.3, frameworks: 0.25, databases: 0.2, tools: 0.15, softSkills: 0.1 }
+    };
+  }
+
+  extractEnhancedKeywords(jobDescription) {
+    const text = jobDescription.toLowerCase();
+    const extractedSkills = {};
+    const skillImportance = {};
+    
+    const roleType = this.detectRoleType(text);
+    
+    for (const [category, skills] of Object.entries(this.skillCategories)) {
+      extractedSkills[category] = [];
+      
+      for (const [skill, variants] of Object.entries(skills)) {
+        const importance = this.calculateSkillImportance(text, variants);
+        if (importance > 0) {
+          extractedSkills[category].push({
+            skill,
+            variants,
+            importance,
+            required: this.isRequiredSkill(text, variants)
+          });
+          skillImportance[skill] = importance;
+        }
+      }
+    }
+    
+    const experienceMatches = text.match(/(\d+)[\s]*(?:\+|plus)?\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|exp)/gi);
+    const minExperience = experienceMatches 
+      ? Math.max(...experienceMatches.map(match => parseInt(match.match(/\d+/)[0])))
+      : 0;
+    
+    const educationKeywords = this.extractEducationRequirements(text);
+    
+    return {
+      skills: extractedSkills,
+      roleType,
+      minExperience,
+      education: educationKeywords,
+      skillImportance
+    };
+  }
+
+  calculateSkillImportance(text, skillVariants) {
+    let importance = 0;
+    const contexts = {
+      required: 3,
+      must: 3,
+      essential: 2.5,
+      preferred: 1.5,
+      nice: 0.5,
+      bonus: 0.5
+    };
+    
+    for (const variant of skillVariants) {
+      const regex = new RegExp(`\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      const matches = text.match(regex);
+      
+      if (matches) {
+        importance += matches.length * 0.5;
+        
+        for (const [context, multiplier] of Object.entries(contexts)) {
+          const contextRegex = new RegExp(`${context}[^.]*\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+          if (contextRegex.test(text)) {
+            importance += multiplier;
+          }
+        }
+        
+        if (text.indexOf('requirement') < text.indexOf(variant)) {
+          importance += 1;
+        }
+      }
+    }
+    
+    return Math.min(importance, 5);
+  }
+
+  isRequiredSkill(text, skillVariants) {
+    const requiredPatterns = ['required', 'must have', 'essential', 'mandatory'];
+    
+    for (const variant of skillVariants) {
+      for (const pattern of requiredPatterns) {
+        const regex = new RegExp(`${pattern}[^.]*\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        if (regex.test(text)) return true;
+      }
+    }
+    return false;
+  }
+
+  detectRoleType(text) {
+    const patterns = {
+      frontend: ['frontend', 'front-end', 'ui', 'user interface', 'react', 'angular', 'vue'],
+      backend: ['backend', 'back-end', 'server', 'api', 'database', 'microservices'],
+      fullstack: ['fullstack', 'full-stack', 'full stack'],
+      devops: ['devops', 'infrastructure', 'deployment', 'ci/cd', 'kubernetes', 'docker']
+    };
+    
+    for (const [type, keywords] of Object.entries(patterns)) {
+      if (keywords.some(keyword => text.includes(keyword))) {
+        return type;
+      }
+    }
+    return 'default';
+  }
+
+  analyzeResume(resumeText, jobKeywords) {
+    const resumeLower = resumeText.toLowerCase();
+    const analysis = {
+      matchedSkills: {},
+      skillScores: {},
+      totalMatches: 0,
+      experienceScore: 0,
+      educationScore: 0,
+      overallScore: 0,
+      suggestions: []
+    };
+
+    for (const [category, skills] of Object.entries(jobKeywords.skills)) {
+      if (skills.length === 0) continue;
+      
+      analysis.matchedSkills[category] = [];
+      let categoryScore = 0;
+      let maxCategoryScore = 0;
+
+      for (const skillData of skills) {
+        const { skill, variants, importance, required } = skillData;
+        maxCategoryScore += importance;
+
+        const skillPresent = this.checkSkillPresence(resumeLower, variants);
+        
+        if (skillPresent) {
+          const contextScore = this.getSkillContextScore(resumeText, variants);
+          const finalScore = importance * contextScore;
+          
+          analysis.matchedSkills[category].push({
+            skill,
+            score: finalScore,
+            contextScore,
+            required
+          });
+          categoryScore += finalScore;
+        } else if (required) {
+          analysis.suggestions.push(`Add required skill: ${skill}`);
+        }
+      }
+
+      analysis.skillScores[category] = maxCategoryScore > 0 
+        ? (categoryScore / maxCategoryScore) * 100 
+        : 0;
+    }
+
+    analysis.experienceScore = this.analyzeExperience(resumeText, jobKeywords.minExperience);
+    analysis.educationScore = this.analyzeEducation(resumeText, jobKeywords.education);
+
+    const weights = this.industryWeights[jobKeywords.roleType];
+    let weightedScore = 0;
+    let totalWeight = 0;
+
+    for (const [category, weight] of Object.entries(weights)) {
+      if (analysis.skillScores[category] !== undefined) {
+        weightedScore += analysis.skillScores[category] * weight;
+        totalWeight += weight;
+      }
+    }
+
+    weightedScore += analysis.experienceScore * 0.15;
+    weightedScore += analysis.educationScore * 0.1;
+    totalWeight += 0.25;
+
+    analysis.overallScore = Math.min(Math.round(weightedScore / totalWeight), 100);
+    
+    this.generateSuggestions(analysis, jobKeywords);
+
+    return analysis;
+  }
+
+  checkSkillPresence(resumeText, skillVariants) {
+    for (const variant of skillVariants) {
+      const exactRegex = new RegExp(`\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (exactRegex.test(resumeText)) return true;
+    }
+    return false;
+  }
+
+  getSkillContextScore(resumeText, skillVariants) {
+    let contextScore = 0.5;
+    
+    for (const variant of skillVariants) {
+      const achievementPattern = new RegExp(`\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]*(?:\\d+%|improved|increased|reduced|optimized)`, 'gi');
+      if (achievementPattern.test(resumeText)) contextScore += 0.3;
+      
+      const experiencePattern = new RegExp(`\\d+\\s*(?:years?|yrs?)\\s*(?:of\\s*)?(?:experience\\s*)?(?:with\\s*|in\\s*)?\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      if (experiencePattern.test(resumeText)) contextScore += 0.2;
+      
+      const skillsSectionPattern = new RegExp(`(?:skills?|technologies?|tools?)[:]*[^\\n]*\\b${variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      if (skillsSectionPattern.test(resumeText)) contextScore += 0.1;
+    }
+    
+    return Math.min(contextScore, 1);
+  }
+
+  analyzeExperience(resumeText, requiredYears) {
+    if (requiredYears === 0) return 100;
+    
+    const experiencePatterns = [
+      /(\d+)[\s]*(?:\+|plus)?\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|exp)/gi,
+      /experience:\s*(\d+)/gi,
+      /(\d{4})\s*[-–]\s*(?:present|current|\d{4})/gi
+    ];
+    
+    let maxExperience = 0;
+    
+    for (const pattern of experiencePatterns) {
+      const matches = resumeText.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          const years = parseInt(match.match(/\d+/)[0]);
+          maxExperience = Math.max(maxExperience, years);
+        }
+      }
+    }
+    
+    const dateRanges = resumeText.match(/(\d{4})\s*[-–]\s*(?:present|current|(\d{4}))/gi);
+    if (dateRanges) {
+      const currentYear = new Date().getFullYear();
+      for (const range of dateRanges) {
+        const [start, end] = range.split(/[-–]/).map(d => d.trim());
+        const startYear = parseInt(start);
+        const endYear = end.toLowerCase().includes('present') || end.toLowerCase().includes('current') 
+          ? currentYear 
+          : parseInt(end);
+        maxExperience = Math.max(maxExperience, endYear - startYear);
+      }
+    }
+    
+    return Math.min((maxExperience / requiredYears) * 100, 100);
+  }
+
+  extractEducationRequirements(text) {
+    const educationLevels = {
+      phd: ['ph.d', 'phd', 'doctorate', 'doctoral'],
+      masters: ['master', 'ms', 'ma', 'mba', 'graduate degree'],
+      bachelors: ['bachelor', 'bs', 'ba', 'undergraduate', 'college degree'],
+      associate: ['associate', 'aa', 'as'],
+      diploma: ['diploma', 'certificate', 'certification']
+    };
+    
+    const found = [];
+    for (const [level, variants] of Object.entries(educationLevels)) {
+      if (variants.some(variant => text.includes(variant))) {
+        found.push(level);
+      }
+    }
+    return found;
+  }
+
+  analyzeEducation(resumeText, requiredEducation) {
+    if (!requiredEducation || requiredEducation.length === 0) return 100;
+    
+    const resumeEducation = this.extractEducationRequirements(resumeText.toLowerCase());
+    
+    const educationHierarchy = ['diploma', 'associate', 'bachelors', 'masters', 'phd'];
+    const getEducationLevel = (edu) => educationHierarchy.indexOf(edu);
+    
+    const maxResumeLevel = Math.max(...resumeEducation.map(getEducationLevel), -1);
+    const minRequiredLevel = Math.min(...requiredEducation.map(getEducationLevel));
+    
+    return maxResumeLevel >= minRequiredLevel ? 100 : 50;
+  }
+
+  generateSuggestions(analysis, jobKeywords) {
+    const suggestions = analysis.suggestions;
+    
+    for (const [category, skills] of Object.entries(jobKeywords.skills)) {
+      for (const skillData of skills) {
+        if (skillData.importance > 2 && 
+            !analysis.matchedSkills[category]?.some(m => m.skill === skillData.skill)) {
+          suggestions.push(`Consider adding "${skillData.skill}" - high importance skill`);
+        }
+      }
+    }
+    
+    if (analysis.overallScore < 70) {
+      suggestions.push('Add quantifiable achievements (e.g., "Improved performance by 25%")');
+      suggestions.push('Use action verbs and specific examples');
+    }
+    
+    const lowScoreCategories = Object.entries(analysis.skillScores)
+      .filter(([_, score]) => score < 50)
+      .map(([category, _]) => category);
+    
+    if (lowScoreCategories.length > 0) {
+      suggestions.push(`Focus on improving ${lowScoreCategories.join(', ')} sections`);
+    }
+  }
+
+  calculateEnhancedScore(resumeText, jobDescription) {
+    try {
+      const jobKeywords = this.extractEnhancedKeywords(jobDescription);
+      const analysis = this.analyzeResume(resumeText, jobKeywords);
+      
+      return {
+        score: analysis.overallScore,
+        breakdown: analysis.skillScores,
+        matched: analysis.matchedSkills,
+        suggestions: analysis.suggestions,
+        experienceScore: analysis.experienceScore,
+        educationScore: analysis.educationScore,
+        jobAnalysis: jobKeywords
+      };
+    } catch (error) {
+      console.error('Error in calculateEnhancedScore:', error);
+      return {
+        score: 0,
+        breakdown: {},
+        matched: {},
+        suggestions: ['Error analyzing resume. Please try again.'],
+        experienceScore: 0,
+        educationScore: 0
+      };
+    }
+  }
+}
 
 const ResumeScorer = () => {
-  const [resumeText, setResumeText] = useState('');
-  const [jobDescriptionText, setJobDescriptionText] = useState('');
-  const [score, setScore] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [analysis, setAnalysis] = useState(null);
+  const [jdFileName, setJdFileName] = useState("");
+  const [fileName, setFileName] = useState('');
+  const [resumeText, setResumeText] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [scoreResult, setScoreResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [animatedScore, setAnimatedScore] = useState(0);
+  const [showLoader, setShowLoader] = useState(false);
+  const scorer = new EnhancedATSScorer();
+  
 
-  // Extract keywords from job description
-  const extractKeywords = (text) => {
-    if (!text) return { hardSkills: [], softSkills: [], tools: [], experience: [], education: [] };
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setError("");
+    setScoreResult(null);
+    setResumeText("");
+    setFileName("");
+    setLoading(true);
     
-    // Focus on requirements section if it exists
-    const requirementsSection = text.match(/requirements:(.*?)(?=nice to have|benefits|$)/is)?.[1] || text;
+    setFileName(file.name);
     
-    const hardSkills = requirementsSection.match(/\b(react|javascript|typescript|node\.?js|python|java|html|css|sql)\b/gi) || [];
-    const softSkills = requirementsSection.match(/\b(communication|teamwork|leadership|problem[- ]solving|collaboration)\b/gi) || [];
-    const tools = requirementsSection.match(/\b(git|aws|docker|jenkins|webpack|redux)\b/gi) || [];
-    const experience = requirementsSection.match(/\d+\+ years? experience\b/gi) || [];
-    const education = requirementsSection.match(/\b(bachelor'?s?|master'?s?|ph\.?d|degree)\b/gi) || [];
-
-    return {
-      hardSkills: [...new Set(hardSkills.map(s => s.toLowerCase()))],
-      softSkills: [...new Set(softSkills.map(s => s.toLowerCase()))],
-      tools: [...new Set(tools.map(s => s.toLowerCase()))],
-      experience: [...new Set(experience)],
-      education: [...new Set(education.map(s => s.toLowerCase()))]
-    };
-  };
-
-  // Calculate ATS score
-  const calculateScore = () => {
-    if (!resumeText || !jobDescriptionText) return;
-    
-    const jdKeywords = extractKeywords(jobDescriptionText);
-    const resumeLower = resumeText.toLowerCase();
-    
-    let totalScore = 0;
-    const matchedKeywords = [];
-    const missingKeywords = [];
-    const missingRequirements = [];
-    const scoreBreakdown = {};
-    const suggestions = [];
-
-    // Calculate scores for each category
-    const calculateCategoryScore = (keywords, weight) => {
-      if (!keywords || keywords.length === 0) return 0;
-      const matched = keywords.filter(kw => 
-        new RegExp(`\\b${kw}\\b`, 'i').test(resumeLower)
-      );
-      matchedKeywords.push(...matched);
-      missingKeywords.push(...keywords.filter(kw => !matched.includes(kw)));
-      return (matched.length / keywords.length) * weight * 100;
-    };
-
-    scoreBreakdown.hardSkills = Math.round(calculateCategoryScore(jdKeywords.hardSkills, 0.4));
-    scoreBreakdown.softSkills = Math.round(calculateCategoryScore(jdKeywords.softSkills, 0.2));
-    scoreBreakdown.tools = Math.round(calculateCategoryScore(jdKeywords.tools, 0.2));
-    scoreBreakdown.experience = jdKeywords.experience.some(exp => 
-      new RegExp(exp, 'i').test(resumeLower)
-    ) ? 10 : 0;
-    scoreBreakdown.education = jdKeywords.education.some(edu => 
-      new RegExp(edu, 'i').test(resumeLower)
-    ) ? 10 : 0;
-
-    totalScore = Math.min(Math.round(Object.values(scoreBreakdown).reduce((a, b) => a + b, 0)), 100);
-
-    // Generate suggestions
-    if (scoreBreakdown.hardSkills < 30 && missingKeywords.length > 0) {
-      suggestions.push(`Add these skills: ${missingKeywords.slice(0, 5).join(', ')}${missingKeywords.length > 5 ? '...' : ''}`);
-    }
-    if (scoreBreakdown.experience === 0 && jdKeywords.experience.length > 0) {
-      missingRequirements.push(`Requires ${jdKeywords.experience.join(' or ')} experience`);
-    }
-    if (scoreBreakdown.education === 0 && jdKeywords.education.length > 0) {
-      missingRequirements.push(`Requires ${jdKeywords.education.join(' or ')} degree`);
-    }
-
-    setAnalysis({
-      matchedKeywords,
-      missingKeywords,
-      missingRequirements,
-      scoreBreakdown,
-      suggestions
-    });
-    setScore(totalScore);
-  };
-
-  // Process uploaded files
-  const processFile = async (file) => {
     try {
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        let text = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          text += content.items.map(item => item.str).join(' ') + ' ';
-        }
-        return text.trim();
-      } else {
-        return await file.text();
-      }
-    } catch (error) {
-      console.error('Error processing file:', error);
-      alert(`Error processing ${file.name}`);
-      return '';
-    }
-  };
-
-  // Handle file drops
-  const onDrop = async (acceptedFiles, isResume) => {
-    if (acceptedFiles.length === 0) return;
-    
-    setIsProcessing(true);
-    try {
-      const text = await processFile(acceptedFiles[0]);
-      if (isResume) {
+      if (file.type === "application/pdf") {
+        const text = await parsePDF(file);
+        setResumeText(text);
+      } else if (file.type === "text/plain") {
+        const text = await file.text();
         setResumeText(text);
       } else {
-        setJobDescriptionText(text);
+        setError("Unsupported file type. Please upload PDF or TXT.");
       }
-    } finally {
-      setIsProcessing(false);
+    } catch (e) {
+      console.error('File parsing error:', e);
+      setError("Failed to parse file: " + e.message);
     }
+    setLoading(false);
   };
 
-  // Recalculate score when files change
-  useEffect(() => {
-    calculateScore();
-  }, [resumeText, jobDescriptionText]);
+  const handleJDFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
 
-  // Dropzone configurations
-  const resumeDropzone = useDropzone({
-    onDrop: (files) => onDrop(files, true),
-    accept: {
-      'application/pdf': ['.pdf'],
-      'text/plain': ['.txt']
-    },
-    multiple: false,
-    maxFiles: 1,
-    disabled: isProcessing
-  });
+  setError("");
+  setJobDescription("");
+  setJdFileName("");
+  setLoading(true);
 
-  const jdDropzone = useDropzone({
-    onDrop: (files) => onDrop(files, false),
-    accept: {
-      'application/pdf': ['.pdf'],
-      'text/plain': ['.txt']
-    },
-    multiple: false,
-    maxFiles: 1,
-    disabled: isProcessing
-  });
+  setJdFileName(file.name);
 
-  // Circular progress component
-  const CircularProgress = ({ percentage }) => (
-    <div style={{ position: 'relative', width: '120px', height: '120px' }}>
-      <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle
-          cx="60" cy="60" r="54"
-          stroke="#e9ecef" strokeWidth="12" fill="none"
-        />
-        <circle
-          cx="60" cy="60" r="54"
-          stroke={percentage > 70 ? '#28a745' : percentage > 50 ? '#ffc107' : '#dc3545'}
-          strokeWidth="12"
-          strokeDasharray="339"
-          strokeDashoffset={339 - (339 * percentage / 100)}
-          strokeLinecap="round"
-          fill="none"
-          transform="rotate(-90 60 60)"
-        />
-      </svg>
-      <div style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        fontSize: '24px',
-        fontWeight: 'bold',
-        color: percentage > 70 ? '#28a745' : percentage > 50 ? '#ffc107' : '#dc3545'
-      }}>
-        {percentage}%
-      </div>
-    </div>
-  );
+  try {
+    if (file.type === "application/pdf") {
+      const text = await parsePDF(file);
+      setJobDescription(text);
+    } else if (file.type === "text/plain") {
+      const text = await file.text();
+      setJobDescription(text);
+    } else {
+      setError("Unsupported file type for Job Description. Please upload PDF or TXT.");
+    }
+  } catch (e) {
+    console.error("Job Description parsing error:", e);
+    setError("Failed to parse Job Description file: " + e.message);
+  }
+  setLoading(false);
+};
+
+
+  async function parsePDF(file) {
+    try {
+      // Dynamic import for PDF.js
+      const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js');
+      
+      // Set worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = "";
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(" ") + " ";
+      }
+      return text;
+    } catch (error) {
+      console.error('PDF parsing error:', error);
+      throw new Error('Failed to parse PDF. Please try converting to text format.');
+    }
+  }
+
+  const handleScore = () => {
+  setError("");
+  if (!resumeText || !jobDescription) {
+    setError("Please upload a resume and enter a job description.");
+    return;
+  }
+
+  setLoading(true);
+  setShowLoader(true);   // show loader first
+  setAnimatedScore(0);   // reset score animation
+
+  setTimeout(() => {
+    try {
+      console.log("Starting scoring process...");
+      const result = scorer.calculateEnhancedScore(resumeText, jobDescription);
+      console.log("Score result:", result);
+      setScoreResult(result);
+
+      // Animate number rising
+      let start = 0;
+      const end = result.score;
+      const duration = 2000; // 2 seconds
+      const stepTime = 20; // update every 20ms
+      let current = start;
+      const increment = (end - start) / (duration / stepTime);
+
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= end) {
+          current = end;
+          clearInterval(timer);
+        }
+        setAnimatedScore(Math.round(current));
+      }, stepTime);
+
+    } catch (e) {
+      console.error("Scoring error:", e);
+      setError("Scoring failed: " + e.message);
+    }
+    setShowLoader(false);
+    setLoading(false);
+  }); // 3 second delay
+};
+
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>ATS Resume Optimizer</h1>
+    <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg">
+      <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Resume ATS Scorer</h2>
       
-      {/* File Upload Areas */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '40px' }}>
-        <div 
-          {...resumeDropzone.getRootProps()} 
-          style={{ 
-            flex: 1,
-            border: '2px dashed #4a89dc',
-            padding: '25px',
-            textAlign: 'center',
-            cursor: isProcessing ? 'wait' : 'pointer',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            transition: 'all 0.3s'
-          }}
-        >
-          <input {...resumeDropzone.getInputProps()} />
-          <h3 style={{ color: '#4a89dc', marginBottom: '10px' }}>Upload Resume</h3>
-          <p style={{ color: '#666' }}>(PDF or TXT)</p>
-          {isProcessing && resumeDropzone.isFileDialogActive ? (
-            <p style={{ color: '#4a89dc', marginTop: '10px' }}>Processing...</p>
-          ) : resumeText ? (
-            <p style={{ color: '#28a745', marginTop: '10px' }}>✓ Resume Loaded</p>
-          ) : (
-            <p style={{ color: '#666', marginTop: '10px' }}>Drag & drop file here</p>
-          )}
-        </div>
+    <div className="grid md:grid-cols-2 gap-8 mb-10">
+  {/* Resume Upload */}
+  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer transition hover:border-blue-500 hover:shadow-lg">
+    <label className="block text-lg font-semibold text-gray-700 mb-4">
+      Upload Resume
+    </label>
+    <input
+      type="file"
+      accept=".pdf,.txt"
+      onChange={handleFileUpload}
+      className="hidden"
+      id="resume-upload"
+    />
+    <label
+      htmlFor="resume-upload"
+      className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium cursor-pointer hover:bg-blue-700 transition"
+    >
+      Choose Resume File
+    </label>
+    {fileName && (
+      <p className="mt-4 text-green-600 font-medium">✓ {fileName}</p>
+    )}
+  </div>
 
-        <div 
-          {...jdDropzone.getRootProps()} 
-          style={{ 
-            flex: 1,
-            border: '2px dashed #37bc9b',
-            padding: '25px',
-            textAlign: 'center',
-            cursor: isProcessing ? 'wait' : 'pointer',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            transition: 'all 0.3s'
-          }}
-        >
-          <input {...jdDropzone.getInputProps()} />
-          <h3 style={{ color: '#37bc9b', marginBottom: '10px' }}>Upload Job Description</h3>
-          <p style={{ color: '#666' }}>(PDF or TXT)</p>
-          {isProcessing && jdDropzone.isFileDialogActive ? (
-            <p style={{ color: '#37bc9b', marginTop: '10px' }}>Processing...</p>
-          ) : jobDescriptionText ? (
-            <p style={{ color: '#28a745', marginTop: '10px' }}>✓ JD Loaded</p>
-          ) : (
-            <p style={{ color: '#666', marginTop: '10px' }}>Drag & drop file here</p>
-          )}
+  {/* Job Description Upload */}
+  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer transition hover:border-purple-500 hover:shadow-lg">
+    <label className="block text-lg font-semibold text-gray-700 mb-4">
+      Upload Job Description
+    </label>
+    <input
+      type="file"
+      accept=".pdf,.txt"
+      onChange={handleJDFileUpload}
+      className="hidden"
+      id="jd-upload"
+    />
+    <label
+      htmlFor="jd-upload"
+      className="bg-purple-600 text-white px-6 py-3 rounded-lg font-medium cursor-pointer hover:bg-purple-700 transition"
+    >
+      Choose JD File
+    </label>
+    {jdFileName && (
+      <p className="mt-4 text-purple-600 font-medium">✓ {jdFileName}</p>
+    )}
+  </div>
+</div>
+
+
+      
+      <div className="flex justify-center mb-8">
+  <button
+    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-10 py-4 rounded-xl font-semibold shadow-lg transition disabled:opacity-50"
+    onClick={handleScore}
+    disabled={loading || !resumeText || !jobDescription}
+  >
+    {loading ? "⏳ Scoring..." : "⚡ Score Resume"}
+  </button>
+</div>
+
+      
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700">{error}</p>
         </div>
+      )}
+      
+      {scoreResult && (
+  <div className="mt-12 space-y-10">
+    {/* Radial ATS Score */}
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="bg-white p-10 rounded-2xl shadow-xl flex flex-col items-center space-y-6"
+    >
+      <div className="relative w-44 h-44">
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `conic-gradient(${
+              scoreResult.score >= 70 ? '#22c55e'
+              : scoreResult.score >= 50 ? '#eab308'
+              : '#ef4444'
+            } ${scoreResult.score}%, #f3f4f6 ${scoreResult.score}%)`
+          }}
+        />
+        <motion.div
+  className="absolute inset-6 rounded-full bg-white flex items-center justify-center"
+  initial={{ scale: 0 }}
+  animate={{ scale: 1 }}
+  transition={{ duration: 1 }}
+>
+  <span className="text-4xl font-extrabold text-gray-800">
+    {animatedScore}
+  </span>
+</motion.div>
+
+
       </div>
+      <h3 className="text-xl font-semibold text-gray-700">ATS Score</h3>
+    </motion.div>
 
-      {/* Results Section */}
-      {score !== null && (
-        <div style={{ 
-          border: '1px solid #e0e0e0', 
-          padding: '30px',
-          backgroundColor: '#fff',
-          borderRadius: '10px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          marginBottom: '30px'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '30px',
-            flexWrap: 'wrap',
-            gap: '20px'
-          }}>
-            <div>
-              <h2 style={{ marginBottom: '5px', color: '#333' }}>ATS Compatibility Score</h2>
-              <p style={{ 
-                color: score > 70 ? '#28a745' : score > 50 ? '#f6bb42' : '#da4453',
-                fontWeight: 'bold',
-                fontSize: '18px'
-              }}>
-                {score > 70 ? 'Excellent match! 🎉' : 
-                 score > 50 ? 'Good match, but could be improved 👍' : 
-                 'Needs significant improvement ⚠️'}
-              </p>
-            </div>
-            <CircularProgress percentage={score} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-            {/* Positive Matches */}
-            <div style={{ flex: 1, minWidth: '300px' }}>
-              <div style={{ 
-                backgroundColor: '#f0f9eb',
-                padding: '20px',
-                borderRadius: '8px',
-                height: '100%'
-              }}>
-                <h3 style={{ color: '#28a745', marginBottom: '15px' }}>✅ Strong Matches</h3>
-                {analysis.matchedKeywords.length > 0 ? (
-                  <ul style={{ listStyleType: 'none', paddingLeft: '0' }}>
-                    {analysis.matchedKeywords.slice(0, 10).map((keyword, i) => (
-                      <li key={i} style={{ 
-                        marginBottom: '8px',
-                        padding: '8px 12px',
-                        backgroundColor: '#e1f3d8',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}>
-                        <span style={{ 
-                          display: 'inline-block',
-                          width: '20px',
-                          height: '20px',
-                          backgroundColor: '#28a745',
-                          color: 'white',
-                          borderRadius: '50%',
-                          textAlign: 'center',
-                          lineHeight: '20px',
-                          marginRight: '10px',
-                          fontSize: '12px'
-                        }}>✓</span>
-                        <strong>{keyword}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p style={{ color: '#666' }}>No strong keyword matches found</p>
-                )}
+    {/* Skill Breakdown + Experience/Education */}
+    <div className="grid md:grid-cols-2 gap-8">
+      {/* Skills */}
+      <motion.div
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6 }}
+        className="bg-white p-6 rounded-2xl shadow-md"
+      >
+        <h4 className="text-lg font-semibold mb-4 text-gray-800">Skill Breakdown</h4>
+        <div className="space-y-4">
+          {Object.entries(scoreResult.breakdown).map(([cat, val]) => (
+            <div key={cat} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 capitalize">{cat.replace(/([A-Z])/g, ' $1')}</span>
+                <span className="font-medium">{Math.round(val)}/100</span>
               </div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(val, 100)}%` }}
+                transition={{ duration: 0.8 }}
+                className="bg-blue-500 h-3 rounded-full"
+              />
+              <div className="w-full bg-gray-200 rounded-full h-3 -mt-3" />
             </div>
-
-            {/* Areas for Improvement */}
-            <div style={{ flex: 1, minWidth: '300px' }}>
-              <div style={{ 
-                backgroundColor: '#fef6f6',
-                padding: '20px',
-                borderRadius: '8px',
-                height: '100%'
-              }}>
-                <h3 style={{ color: '#da4453', marginBottom: '15px' }}>⚠️ Missing Keywords</h3>
-                {analysis.missingKeywords.length > 0 ? (
-                  <ul style={{ listStyleType: 'none', paddingLeft: '0' }}>
-                    {analysis.missingKeywords.slice(0, 10).map((keyword, i) => (
-                      <li key={i} style={{ 
-                        marginBottom: '8px',
-                        padding: '8px 12px',
-                        backgroundColor: '#fce1e1',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}>
-                        <span style={{ 
-                          display: 'inline-block',
-                          width: '20px',
-                          height: '20px',
-                          backgroundColor: '#da4453',
-                          color: 'white',
-                          borderRadius: '50%',
-                          textAlign: 'center',
-                          lineHeight: '20px',
-                          marginRight: '10px',
-                          fontSize: '12px'
-                        }}>✗</span>
-                        <strong>{keyword}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p style={{ color: '#666' }}>All important keywords matched!</p>
-                )}
-
-                {analysis.missingRequirements.length > 0 && (
-                  <>
-                    <h4 style={{ 
-                      color: '#da4453',
-                      marginTop: '20px',
-                      marginBottom: '15px'
-                    }}>⚠️ Missing Requirements</h4>
-                    <ul style={{ listStyleType: 'none', paddingLeft: '0' }}>
-                      {analysis.missingRequirements.map((req, i) => (
-                        <li key={i} style={{ 
-                          marginBottom: '8px',
-                          padding: '8px 12px',
-                          backgroundColor: '#fce1e1',
-                          borderRadius: '4px'
-                        }}>
-                          {req}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Score Breakdown */}
-          <div style={{ marginTop: '30px' }}>
-            <h3 style={{ color: '#333', marginBottom: '15px' }}>📊 Detailed Score Breakdown</h3>
-            <div style={{ 
-              backgroundColor: '#f5f7fa',
-              padding: '20px',
-              borderRadius: '8px'
-            }}>
-              {Object.entries(analysis.scoreBreakdown).map(([category, score]) => (
-                <div key={category} style={{ marginBottom: '15px' }}>
-                  <div style={{ 
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '5px'
-                  }}>
-                    <span style={{ 
-                      textTransform: 'capitalize',
-                      fontWeight: '500'
-                    }}>
-                      {category.replace(/([A-Z])/g, ' $1')}:
-                    </span>
-                    <span style={{ 
-                      fontWeight: 'bold',
-                      color: score > 70 ? '#28a745' : score > 50 ? '#f6bb42' : '#da4453'
-                    }}>
-                      {score}%
-                    </span>
-                  </div>
-                  <div style={{
-                    height: '10px',
-                    backgroundColor: '#e0e6ed',
-                    borderRadius: '5px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      width: `${score}%`,
-                      height: '100%',
-                      backgroundColor: score > 70 ? '#28a745' : score > 50 ? '#f6bb42' : '#da4453',
-                      transition: 'width 0.5s ease'
-                    }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Suggestions */}
-          {analysis.suggestions.length > 0 && (
-            <div style={{ marginTop: '30px' }}>
-              <h3 style={{ color: '#333', marginBottom: '15px' }}>💡 Optimization Suggestions</h3>
-              <div style={{ 
-                backgroundColor: '#f0f7fd',
-                padding: '20px',
-                borderRadius: '8px'
-              }}>
-                <ul style={{ listStyleType: 'none', paddingLeft: '0' }}>
-                  {analysis.suggestions.map((suggestion, i) => (
-                    <li key={i} style={{ 
-                      marginBottom: '10px',
-                      paddingLeft: '20px',
-                      position: 'relative'
-                    }}>
-                      <span style={{
-                        position: 'absolute',
-                        left: '0',
-                        color: '#4a89dc'
-                      }}>•</span>
-                      {suggestion}
-                    </li>
-                  ))}
-                  <li style={{ 
-                    marginBottom: '10px',
-                    paddingLeft: '20px',
-                    position: 'relative'
-                  }}>
-                    <span style={{
-                      position: 'absolute',
-                      left: '0',
-                      color: '#4a89dc'
-                    }}>•</span>
-                    Use exact phrases from the job description
-                  </li>
-                  <li style={{ 
-                    marginBottom: '10px',
-                    paddingLeft: '20px',
-                    position: 'relative'
-                  }}>
-                    <span style={{
-                      position: 'absolute',
-                      left: '0',
-                      color: '#4a89dc'
-                    }}>•</span>
-                    Highlight quantifiable achievements (e.g., "Increased performance by 20%")
-                  </li>
-                </ul>
-              </div>
-            </div>
-          )}
+          ))}
         </div>
+      </motion.div>
+
+      {/* Experience & Education */}
+      <motion.div
+        initial={{ opacity: 0, x: 40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6 }}
+        className="bg-white p-6 rounded-2xl shadow-md"
+      >
+        <h4 className="text-lg font-semibold mb-4 text-gray-800">Experience & Education</h4>
+        <div className="space-y-5">
+          {/* Experience */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Experience Match</span>
+              <span className="font-medium">{Math.round(scoreResult.experienceScore)}/100</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${scoreResult.experienceScore}%` }}
+                transition={{ duration: 0.8 }}
+                className="bg-green-500 h-3 rounded-full"
+              />
+            </div>
+          </div>
+          {/* Education */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Education Match</span>
+              <span className="font-medium">{Math.round(scoreResult.educationScore)}/100</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${scoreResult.educationScore}%` }}
+                transition={{ duration: 0.8 }}
+                className="bg-purple-500 h-3 rounded-full"
+              />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+
+    {/* Suggestions */}
+    {scoreResult.suggestions?.length > 0 && (
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-8 rounded-2xl shadow-md"
+      >
+        <h4 className="text-xl font-semibold mb-6 text-gray-800 flex items-center gap-2">
+          💡 Optimization Suggestions
+        </h4>
+        <div className="grid md:grid-cols-2 gap-4">
+          {scoreResult.suggestions.slice(0, 10).map((s, i) => (
+            <motion.div
+              key={i}
+              whileHover={{ scale: 1.03 }}
+              className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-yellow-400 flex items-start gap-3"
+            >
+              <span className="text-yellow-500 mt-1">⚡</span>
+              <span className="text-gray-700">{s}</span>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+    )}
+  </div>
+)}
+ 
+      {resumeText && (
+        <details className="mt-6 bg-gray-50 p-4 rounded-lg">
+          <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+            Show parsed resume text ({resumeText.length} characters)
+          </summary>
+          <pre className="mt-4 bg-white p-4 rounded border text-xs whitespace-pre-wrap max-h-96 overflow-y-auto">
+            {resumeText}
+          </pre>
+        </details>
       )}
     </div>
   );
