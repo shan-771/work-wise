@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { db, auth } from "../firebaseConfig";
+import { doc, setDoc, getDoc, updateDoc, increment, arrayUnion } from "firebase/firestore";
+
 
 const MockInterview = () => {
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -13,6 +16,8 @@ const MockInterview = () => {
   const [jobRole, setJobRole] = useState("");
   const [experience, setExperience] = useState("");
   const [skills, setSkills] = useState("");
+  const [score, setScore] = useState(null);
+
 
   useEffect(() => {
     let interval;
@@ -122,52 +127,77 @@ const MockInterview = () => {
   };
 
   const evaluateAnswers = async (answersToEvaluate) => {
-    setIsEvaluating(true);
-    setProgress(0);
-    
-    try {
-      if (!Array.isArray(answersToEvaluate) || answersToEvaluate.length === 0) {
-        console.error("Invalid answers format");
-        return;
-      }
-      
-      const response = await fetch("http://localhost:5000/evaluate_answers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers: answersToEvaluate })
-      });
-      
-      const data = await response.json();
-      
-      if (data.status === "error") {
-        console.error("Evaluation error:", data.error);
-        setEvaluation(["Failed to evaluate answers. Please try again."]);
-      } 
-      else if (data.failed_count > 0) {
-        setEvaluation([ 
-          ...data.evaluations,
-          `Note: ${data.failed_count} evaluation(s) failed due to rate limits`
-        ]);
-      }
-      else {
-        setEvaluation(data.evaluations);
-      }
-      
-      setShowDownload(true);
-      
-    } catch (error) {
-      console.error("Error fetching evaluation:", error);
-      setEvaluation([
-        "Evaluation service unavailable. Answers were saved but not evaluated.",
-        "Try again later or download your answers."
-      ]);
-      setShowDownload(true);
-    } finally {
-      setIsEvaluating(false);
-    }
-  };
+  setIsEvaluating(true);
+  setProgress(0);
 
-  const downloadAnswers = () => {
+  try {
+    if (!Array.isArray(answersToEvaluate) || answersToEvaluate.length === 0) {
+      console.error("Invalid answers format");
+      return;
+    }
+
+    const response = await fetch("http://localhost:5000/evaluate_answers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers: answersToEvaluate })
+    });
+
+    const data = await response.json();
+
+    let score = 0;
+    if (Array.isArray(data.evaluations)) {
+      // Example: assume backend gives scores inside each evaluation
+      score = data.evaluations.reduce((acc, item) => acc + (item.score || 0), 0) / data.evaluations.length;
+    }
+
+    setEvaluation(data.evaluations || []);
+
+    setScore(score);
+    saveInterviewResult(score);
+
+  } catch (error) {
+    console.error("Error fetching evaluation:", error);
+  } finally {
+    setIsEvaluating(false);
+    setShowDownload(true);
+  }
+};
+
+const saveInterviewResult = async (score) => {
+  if (typeof score !== "number" || isNaN(score)) score = 0;
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    let newCount = 1;
+    let newAvg = score;
+
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      const prevCount = userData.interviews || 0;
+      const prevAvg = Number(userData.avgScore) || 0;
+
+      newCount = prevCount + 1;
+      newAvg = Number(((prevAvg * prevCount + score) / newCount).toFixed(2));
+    }
+
+    await setDoc(userRef, {
+      interviews: newCount,
+      avgScore: newAvg
+    }, { merge: true }); // ✅ important
+
+    console.log("✅ Interview progress and avgScore saved:", { newCount, newAvg });
+  } catch (error) {
+    console.error("❌ Error saving result:", error);
+  }
+};
+
+
+
+const downloadAnswers = () => {
     const element = document.createElement("a");
     const file = new Blob([answers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")], { type: "text/plain" });
     element.href = URL.createObjectURL(file);
