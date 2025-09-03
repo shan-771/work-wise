@@ -8,7 +8,7 @@ import time
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key="AIzaSyC9i_OwpPVbKl_hypHHJmxvbSCHKy2TnUQ")
+genai.configure(api_key="api key here")
 
 app = Flask(__name__)
 CORS(app)
@@ -112,3 +112,4 @@ def evaluate_answers():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
