@@ -8,7 +8,7 @@ import time
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key="AIzaSyD9kR7e40H8-zv7545CxZxwsnyOfxqReIw")
+genai.configure(api_key="AIzaSyC9i_OwpPVbKl_hypHHJmxvbSCHKy2TnUQ")
 
 app = Flask(__name__)
 CORS(app)
@@ -38,7 +38,7 @@ def generate_questions():
         experience = data.get("experience", "fresher")
         skills = data.get("skills", "python, c++, java, ai models")
 
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(
             f"You are an interviewer. Generate 5 interview questions for a {job_role} role "
             f"with {experience} years of experience and skills in {skills}. The questions should "
