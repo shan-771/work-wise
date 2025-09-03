@@ -2,6 +2,11 @@ import { useState } from "react";
 import { auth } from "../firebaseConfig";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../firebaseConfig";
+import { getDoc } from "firebase/firestore";
+
+
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -19,22 +24,34 @@ function Login() {
     
     try {
       if (isSignup) {
-        // Signup
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // // Send email verification
-        // await sendEmailVerification(userCredential.user);
-        navigate("/profile");
-      } else {
-        // Login
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        // Check if email is verified
-        // if (!userCredential.user.emailVerified) {
-        //   await sendEmailVerification(userCredential.user);
-        //   setError("Please verify your email first. A new verification link has been sent.");
-        //   return;
-        // }
-        navigate("/dashboard");
-      }
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
+
+  // Create progress doc for this user
+  await setDoc(doc(db, "progress", user.uid), {
+    interviewsTaken: 0,
+    averageScore: 0,
+    builderSessions: 0,
+    scorerSessions: 0,
+    createdAt: new Date(),
+  });
+
+  navigate("/profile");}
+      else {
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
+
+  // Fetch progress
+  const progressSnap = await getDoc(doc(db, "progress", user.uid));
+  if (progressSnap.exists()) {
+    console.log("Progress:", progressSnap.data());
+  } else {
+    console.log("No progress found for this user yet.");
+  }
+
+  navigate("/dashboard");
+}
+
     } catch (error) {
       let errorMessage = "Authentication failed. Please try again.";
       switch (error.code) {
