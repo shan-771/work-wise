@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../firebaseConfig"; // adjust path to your firebase.js
+import { getAuth } from "firebase/auth";
+import { arrayUnion, Timestamp } from "firebase/firestore";
 
 // Enhanced ATS Scorer Class
 class EnhancedATSScorer {
@@ -496,6 +499,10 @@ const ResumeScorer = () => {
       console.log("Score result:", result);
       setScoreResult(result);
 
+      const auth = getAuth();
+      const userId = auth.currentUser?.uid;
+      updateProgress(userId, jdFileName, result.score);
+    
       // Animate number rising
       let start = 0;
       const end = result.score;
@@ -522,6 +529,35 @@ const ResumeScorer = () => {
   }); // 3 second delay
 };
 
+const updateProgress = async (userId, jdName, score) => {
+  try {
+    const userRef = doc(db, "users", userId);
+
+    // Save latest score
+    await setDoc(
+      userRef,
+      { latestResumeScore: score },
+      { merge: true }
+    );
+
+    // Append to resume history
+    await setDoc(
+      userRef,
+      {
+        resumeHistory: arrayUnion({
+          jdName,
+          score,
+          date: Timestamp.now()
+        })
+      },
+      { merge: true }
+    );
+
+    console.log("Progress updated:", score);
+  } catch (err) {
+    console.error("Error updating progress:", err);
+  }
+};
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg">
