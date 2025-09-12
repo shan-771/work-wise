@@ -8,6 +8,7 @@ import Login from "./components/Login";
 import Profile from "./components/Profile"; // ✅ Import Profile Page
 import Layout from './components/Layout';
 import ProgressTracker from "./components/progresstracker";
+import JobSuggestions from "./components/JobSuggestions";
 
 
 function App() {
@@ -23,7 +24,7 @@ function App() {
         <Route path="/resume-builder" element={<ResumeBuilder />} />
         <Route path="/resume-editor" element={<ResumeEditor />} />
         <Route path="/resume-scorer" element={<ResumeScorer />} />
-        <Route path="/job-suggestions" element={<div>Job Suggestions Page</div>} />
+        <Route path="/job-suggestions" element={<JobSuggestions/>} />
         <Route path="/Interview-Questions" element={<div>Interview questions here</div>} />
         <Route path="/Progress-tracker" element={<ProgressTracker/>}/>
         </Route>
