@@ -3,12 +3,12 @@ from flask_cors import CORS
 import google.generativeai as genai
 import logging
 import time
-
+import requests 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-genai.configure(api_key="api key here")
+genai.configure(api_key="AIzaSyC9i_OwpPVbKl_hypHHJmxvbSCHKy2TnUQ")
 
 app = Flask(__name__)
 CORS(app)
@@ -109,7 +109,49 @@ def evaluate_answers():
     except Exception as e:
         logger.error(f"Endpoint error: {str(e)}")
         return jsonify({"error": str(e), "status": "error"}), 500
+    
+@app.route('/job_suggestions', methods=['GET'])
+def job_suggestions():
+    try:
+        # Get query params from frontend
+        query = request.args.get("query", "software engineer")
+        location = request.args.get("location", "India")
+
+        # 🔑 Adzuna API credentials (hardcoded)
+        ADZUNA_APP_ID = "b9fb164f"
+        ADZUNA_APP_KEY = "ad7c034de98d2d5fcf900582092b13bc"
+
+        # Adzuna API endpoint
+        url = "https://api.adzuna.com/v1/api/jobs/in/search/1"
+        params = {
+            "app_id": ADZUNA_APP_ID,
+            "app_key": ADZUNA_APP_KEY,
+            "what": query,
+            "where": location,
+            "results_per_page": 10
+        }
+
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code == 200:
+            jobs = response.json().get("results", [])
+            simplified = [
+                {
+                    "title": job.get("title"),
+                    "company": job.get("company", {}).get("display_name"),
+                    "location": job.get("location", {}).get("display_name"),
+                    "url": job.get("redirect_url")
+                }
+                for job in jobs
+            ]
+            return jsonify({"jobs": simplified})
+        else:
+            return jsonify({"error": "Failed to fetch jobs"}), 500
+
+    except Exception as e:
+        logger.error(f"Error in job_suggestions: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
